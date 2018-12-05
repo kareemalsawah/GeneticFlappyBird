@@ -10,7 +10,7 @@ This project aims to build a neural network architecture from scratch and train 
 * Mutation is added to the process to allow for new discoveries.
 * The games running are displayed, but at a high speed (as much as your computer can handle).
 
-## You can change the settings used in the algorithm:
+## You can change the settings used in the algorithm (You can find them in the file variables.js):
 * Number of birds in generation is self explanatory. It is the number of birds used for the initial generation and each one following it.
 * Number of parents is the variable n described above
 * Hidden layer size is the number of neurons in the hidden layer

@@ -10,6 +10,7 @@
 <input type="button" value="Print Best Network" onclick="
 			console.log(maxNetwork);" />
 </body>
+<script src="js/variables.js"></script>
 <script>
 //Global Variables
 var canvas = document.getElementById("canvas");
@@ -22,12 +23,12 @@ var timePerFrame = 1;
 var barrierSpeed = 15
 var barriers = [];
 var heightRandomRange = 400;
-var networkSize = [4,11,1];
+var networkSize = [4,hidden_layer_size,1];
 var maxFitness = 0;
 var maxNetwork = "";
 
 //Main Loop
-var currentGeneration = new Generation(500,200);
+var currentGeneration = new Generation(number_of_birds_per_generation,200,activation_function);
 currentGeneration.initialize();
 startBarriers();
 function loop(){
@@ -50,11 +51,7 @@ function loop(){
 	}
 	var alive = currentGeneration.runFrame(barriers[closestBarrierIndex].posX,barriers[closestBarrierIndex].posY,barriers[closestBarrierIndex].height,closestBarrierIndex);
 	if(!alive){
-		if(maxFitness>10000){
-			currentGeneration = currentGeneration.nextGeneration(80,500,0.06,5);
-		}else{
-			currentGeneration = currentGeneration.nextGeneration(80,500,0.03,5);
-		}
+		currentGeneration = currentGeneration.nextGeneration(number_of_parents_per_generation,number_of_birds_per_generation,mutation_probability,max_number_of_genes_mutated);
 		barriers = [];
 		startBarriers();
 	}
@@ -95,7 +92,7 @@ function Node(value,bias,squashType){
 		if(squashType=="sigmoid"){
 			return 1/(1+Math.pow(Math.E,-num));
 		}else if(squashType=="tanh"){
-			return num;
+			return (Math.exp(num)-Math.exp(-1*num))/(Math.exp(num)+Math.exp(-1*num));
 		}else if(squashType=="relu"){
 			if(num>0){
 				return num;
@@ -115,11 +112,13 @@ function Node(value,bias,squashType){
 	}
 }
 
-function Layer(nodes,type){
+function Layer(nodes,type,activation){
 	this.nodesLength = nodes;
 	this.type = type;
 	this.nodes = [];
 	this.weights = [];
+	this.activation = activation;
+
 	this.initializeRandom = function(prevNodesLength){
 		if(this.type!="input"){
 			for(var i = 0; i < this.nodesLength; i++){
@@ -129,7 +128,7 @@ function Layer(nodes,type){
 			}
 		}
 		for(var i = 0; i < this.nodesLength; i++){
-			this.nodes.push(new Node(0,Math.random()*2-1,"sigmoid"));
+			this.nodes.push(new Node(0,Math.random()*2-1,this.activation));
 		}
 	}
 
@@ -148,9 +147,9 @@ function Layer(nodes,type){
 
 function Network(arrLayers){
 	this.numLayers = arrLayers.length;
-	this.layers = []
+	this.layers = [];
 
-	this.initialize = function(){
+	this.initialize = function(activation){
 		for(var i = 0; i < this.numLayers; i++){
 			var typeLayer;
 			if(i==0){
@@ -160,7 +159,8 @@ function Network(arrLayers){
 			}else{
 				typeLayer = "hidden layer";
 			}
-			this.layers.push(new Layer(arrLayers[i],typeLayer));
+
+			this.layers.push(new Layer(arrLayers[i],typeLayer,activation));
 			if(i!=0){
 				this.layers[i].initializeRandom(this.layers[i-1].nodesLength);
 			}else{
@@ -197,7 +197,7 @@ function Network(arrLayers){
 		return answer;
 	}
 
-	this.crossOver = function(otherNetwork){
+	this.crossOver = function(otherNetwork,activation){
 		var allWeights = []
 		for(var i = 1; i < this.numLayers; i++){
 			var weights1 = this.layers[i].weights;
@@ -222,7 +222,7 @@ function Network(arrLayers){
 			allWeights.push(newWeights);
 		}
 		var newNetwork = new Network(arrLayers);
-		newNetwork.initialize();
+		newNetwork.initialize(activation);
 		for(var i = 1; i < newNetwork.numLayers; i++){
 			newNetwork.layers[i].weights = allWeights[i-1];
 		}
@@ -241,14 +241,14 @@ function Network(arrLayers){
 	}
 }
 
-function Bird(posX,posY){
+function Bird(posX,posY,activation){
 	this.fitness = 0;
 	this.posX = posX;
 	this.posY = posY;
 	this.velocityY = 0;
 	this.gravity = 20;
 	this.network = new Network(networkSize);
-	this.network.initialize();
+	this.network.initialize(activation);
 	this.jump = false;
 	this.dead = false;
 	this.makeDecision = function(posXBarrier,posYBarrier){
@@ -308,15 +308,18 @@ function Bird(posX,posY){
 	}
 }
 
-function Generation(numBirds,startY){
+function Generation(numBirds,startY,activation){
 	this.numBirds = numBirds;
 	this.birds = [];
-	this.startY = startY
+	this.startY = startY;
+	this.activation = activation;
+
 	this.initialize = function(){
 		for(var i = 0; i < this.numBirds; i++){
-			this.birds.push(new Bird(startX,this.startY));
+			this.birds.push(new Bird(startX,this.startY,this.activation));
 		}
 	}
+
 	this.runFrame = function(posXBarrier,posYBarrier,heightBarrier,nearestBarrierIndex){
 		var alive = false;
 		for(var i = 0; i < this.numBirds; i++){
@@ -346,14 +349,14 @@ function Generation(numBirds,startY){
 		var children = [];
 		for(var i = 0; i < numChildren-numParents; i++){
 			children.push(new Bird(startX,this.startY));
-			children[i].network = parents[Math.floor(Math.random()*parents.length)].network.crossOver(parents[Math.floor(Math.random()*parents.length)]);
+			children[i].network = parents[Math.floor(Math.random()*parents.length)].network.crossOver(parents[Math.floor(Math.random()*parents.length)],this.activation);
 			children[i].network.mutate(mutateProbability,maxGenesToMutate);
 		}
 		for(var i = 0; i < numParents; i++){
 			children.push(new Bird(startX,this.startY));
 			children[i].network = parents[i].network;
 		}
-		var newGeneration = new Generation(numChildren,this.startY);
+		var newGeneration = new Generation(numChildren,this.startY,this.activation);
 		newGeneration.birds = children;
 		return newGeneration;
 	}
