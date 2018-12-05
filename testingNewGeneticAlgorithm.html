@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Genetic Algorithm</title>
+</head>
+<body>
+<canvas id="canvas" height="600" width="1000"></canvas>
+<h2 id="fitness"></h2>
+<h2 id="maxFitness"></h2>
+<input type="button" value="Print Best Network" onclick="
+			console.log(maxNetwork);" />
+</body>
+<script>
+//Global Variables
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+var jumpForce = 170;
+var damping = 0.2;
+var Birdradius = 15;
+var startX = 100;
+var timePerFrame = 1;
+var barrierSpeed = 15
+var barriers = [];
+var heightRandomRange = 400;
+var networkSize = [4,11,1];
+var maxFitness = 0;
+var maxNetwork = "";
+
+//Main Loop
+var currentGeneration = new Generation(500,200);
+currentGeneration.initialize();
+startBarriers();
+function loop(){
+	drawBackground();
+	var closestBarrierIndex = 0;
+	for(var i = 0; i < barriers.length; i++){
+		barriers[i].update();
+		barriers[i].draw();
+		if(barriers[i].posX<(0-barriers[i].width)){
+			barriers.splice(i,1);
+			barriers.push(new Barrier(canvas.width+20,Math.random()*heightRandomRange+50,70,220));
+			i--;
+		}
+	}
+	for(var i = 0; i < barriers.length; i++){	
+		if(barriers[i].posX>startX){
+				closestBarrierIndex = i;
+				break;
+		}
+	}
+	var alive = currentGeneration.runFrame(barriers[closestBarrierIndex].posX,barriers[closestBarrierIndex].posY,barriers[closestBarrierIndex].height,closestBarrierIndex);
+	if(!alive){
+		if(maxFitness>10000){
+			currentGeneration = currentGeneration.nextGeneartion(80,500,0.06,5);
+		}else{
+			currentGeneration = currentGeneration.nextGeneartion(80,500,0.03,5);
+		}
+		barriers = [];
+		startBarriers();
+	}
+	setTimeout(loop,timePerFrame);
+}
+
+loop();
+
+//Temporary manual bird control
+var Jumped = false;
+document.onkeydown = function(){
+	Jumped = true;
+}
+//Other functions
+function drawBackground(){
+	ctx.beginPath();
+	ctx.rect(0,0,canvas.width,canvas.height);
+	ctx.fillStyle = "black";
+	ctx.fill();
+}
+
+function startBarriers(){
+	barriers.push(new Barrier(canvas.width,Math.random()*heightRandomRange+50,70,220));
+	barriers.push(new Barrier(canvas.width+333,Math.random()*heightRandomRange+50,70,220));
+	barriers.push(new Barrier(canvas.width+666,Math.random()*heightRandomRange+50,70,220));
+	//barriers.push(new Barrier(canvas.width+999,Math.random()*heightRandomRange+50,70,220));
+}
+
+function sortArray(arr){
+	return arr.sort(function(bird1,bird2){return bird1.fitness-bird2.fitness;});
+}
+//Objects
+
+function sortArray(arr){
+	return arr.sort(function(element1,element2){return element1.fitness-element2.fitness;});
+}
+//Objects
+function Node(value,squashType){
+	this.value = value;
+	this.squashType = squashType;
+	this.squash = function(num){
+		if(squashType=="sigmoid"){
+			return 1/(1+Math.pow(Math.E,-num));
+		}else if(squashType=="tanh"){
+			return num;
+		}else if(squashType=="relu"){
+			if(num>0){
+				return num;
+			}else{
+				return 0;
+			}
+
+		}else{
+			return num;
+		}
+	}
+	this.addValue = function(valuePrev,weight){
+		this.value += valuePrev*weight
+	}
+	this.squashValue = function(){
+		this.value = this.squash(this.value);
+	}
+}
+
+function Layer(nodes,type){
+	this.nodesLength = nodes;
+	this.type = type;
+	this.nodes = [];
+	this.weights = [];
+	this.biases = [];
+	this.initializeRandom = function(prevNodesLength){
+		if(this.type!="input"){
+			for(var i = 0; i < this.nodesLength; i++){
+				for(var j = 0; j < prevNodesLength; j++){
+					this.weights.push(Math.random()*2 - 1);
+				}
+			}
+		}
+		for(var i = 0; i < this.nodesLength; i++){
+			this.nodes.push(new Node(0,"sigmoid"));
+			this.biases.push(Math.random()*2-1);
+		}
+	}
+
+	this.feedForward = function(prevNodes){
+		for(var i = 0; i < this.nodesLength; i++){
+			for(var j = 0; j < prevNodes.length; j++){
+				this.nodes[i].addValue(prevNodes[j].value,this.weights[i*prevNodes.length + j]);
+			}
+			this.nodes[i].value += this.biases[i];
+		}
+		for(var i = 0; i < this.nodesLength; i++){
+			this.nodes[i].squashValue();
+		}
+		return this.nodes;
+	}
+}
+
+function Network(arrLayers){
+	this.numLayers = arrLayers.length;
+	this.layers = []
+
+	this.initialize = function(){
+		for(var i = 0; i < this.numLayers; i++){
+			var typeLayer;
+			if(i==0){
+				typeLayer = "input";
+			}else if(i == this.numLayers-1){
+				typeLayer = "output";
+			}else{
+				typeLayer = "hidden layer";
+			}
+			this.layers.push(new Layer(arrLayers[i],typeLayer));
+			if(i!=0){
+				this.layers[i].initializeRandom(this.layers[i-1].nodesLength);
+			}else{
+				this.layers[i].initializeRandom(0);
+			}
+		}
+	}
+
+	this.feedForward = function(inputArray){
+		for(var i = 0; i < inputArray.length; i++){
+			this.layers[0].nodes[i].value = inputArray[i];
+		}
+		var currentNodes = this.layers[0].nodes;
+		for(var i = 1; i < this.numLayers; i++){
+			currentNodes = this.layers[i].feedForward(currentNodes);
+		}
+		return currentNodes;
+	}
+
+	this.printNetwork = function(){
+		var answer = [];
+		var weights = [];
+		for(var i = 1; i < this.numLayers; i++){
+			weights.push(this.layers[i].weights);
+		}
+		var biases = [];
+		for(var i = 1; i < this.numLayers; i++){
+			for(var j = 0; j < this.layers[i].nodesLength; j++){
+				biases.push(this.layers[i].biases[j]);
+			}
+		}
+		answer.push(weights);
+		answer.push(biases);
+		return answer;
+	}
+
+	this.crossOver = function(otherNetwork){
+		var allWeights = [];
+		var allBiases = [];
+		for(var i = 1; i < this.numLayers; i++){
+			var weights1 = this.layers[i].weights;
+			var weights2 = otherNetwork.network.layers[i].weights;
+			var biases1 = this.layers[i].biases;
+			var biases2 = otherNetwork.network.layers[i].biases;
+			var newWeights = geneticCrossover(weights1,weights2);
+			var newBiases = geneticCrossover(biases1,biases2);
+			allWeights.push(newWeights);
+			allBiases.push(newBiases);
+		}
+		var newNetwork = new Network(arrLayers);
+		newNetwork.initialize();
+		for(var i = 1; i < newNetwork.numLayers; i++){
+			newNetwork.layers[i].weights = allWeights[i-1];
+			newNetwork.layers[i].biases = allBiases[i-1];
+		}
+		return newNetwork;
+	}
+
+	this.mutate = function(mutateProbability,maxGenesToMutate){
+		for(var i = 1; i < this.numLayers; i++){
+			var weights1 = this.layers[i].weights;
+			for(var j = 0; j < weights1.length; j++){
+				if(Math.random()<mutateProbability){
+					weights1[j] = Math.random()*2 - 1;
+				}
+			}
+		}
+	}
+}
+
+//Helper functions
+
+function geneticCrossover(weights1,weights2){
+			var index1 = Math.floor(Math.random()*weights1.length);
+			var index2 = Math.floor(Math.random()*weights1.length);
+			if(index1>index2){
+				var temp = index1;
+				index1 = index2;
+				index2 = temp;
+			}
+			var newWeights = [];
+			for(var j = 0; j < index1; j++){
+				newWeights.push(weights1[j]);
+			}
+			for(var j = index1; j < index2; j++){
+				newWeights.push(weights2[j]);
+			}
+			for(var j = index2; j < weights1.length; j++){
+				newWeights.push(weights1[j]);
+			}
+			return newWeights;	
+}
+//Will need to do more testing on the network
+
+function Bird(posX,posY){
+	this.fitness = 0;
+	this.posX = posX;
+	this.posY = posY;
+	this.velocityY = 0;
+	this.gravity = 20;
+	this.network = new Network(networkSize);
+	this.network.initialize();
+	this.jump = false;
+	this.dead = false;
+	this.makeDecision = function(posXBarrier,posYBarrier){
+		if(!this.dead){
+			var distToNearestPipe = this.posX-posXBarrier;
+			var heightFromJumpCenter = this.posY-posYBarrier
+			var inputToNetwork = [distToNearestPipe,heightFromJumpCenter,this.posY,this.velocityY];
+			var answer = this.network.feedForward(inputToNetwork);
+			if(answer[0].value>0.5){
+				this.jump = true;
+			}else{
+				this.jump = false;
+			}
+		}
+	}
+
+	this.explicitEuler = function(){
+		if(!this.dead){
+			var forceY = this.gravity;
+			if(this.jump){
+				forceY -= jumpForce;
+				this.jump = false;
+			}
+			this.velocityY += forceY*damping;
+			this.posY += this.velocityY;
+			this.fitness++;
+			if(this.posY<0){
+				this.posY = 0;
+				this.velocityY = 0;
+			}
+		}
+	}
+
+	this.draw = function(){	
+		if(!this.dead){
+			ctx.beginPath();
+			ctx.ellipse(this.posX,this.posY,Birdradius,Birdradius,2*Math.PI,0,2*Math.PI);
+			ctx.fillStyle = "red";
+			ctx.fill();
+		}
+	}
+	this.checkIfDead = function(nearestBarrierIndex){
+		if(this.posY+Birdradius>canvas.height){
+			this.dead = true;
+		}
+		var prev = barriers[nearestBarrierIndex-1];
+		var next = barriers[nearestBarrierIndex]
+		if(prev!=null&&this.posX>prev.posX&&this.posX<prev.posX+prev.width){
+			if(this.posY+Birdradius>prev.posY+(prev.height/2)||this.posY-Birdradius<prev.posY-(prev.height/2)){
+				this.dead = true;
+			}
+		}else if(this.posY+Birdradius>next.posY+(next.height/2)||this.posY-Birdradius<next.posY-(next.height/2)){
+			if(this.posX+Birdradius>=next.posX){
+				this.dead = true;
+			}
+		}
+	}
+}
+
+function Generation(numBirds,startY){
+	this.numBirds = numBirds;
+	this.birds = [];
+	this.startY = startY
+	this.initialize = function(){
+		for(var i = 0; i < this.numBirds; i++){
+			this.birds.push(new Bird(startX,this.startY));
+		}
+	}
+	this.runFrame = function(posXBarrier,posYBarrier,heightBarrier,nearestBarrierIndex){
+		var alive = false;
+		for(var i = 0; i < this.numBirds; i++){
+			this.birds[i].makeDecision(posXBarrier,posYBarrier);
+			this.birds[i].explicitEuler();
+			this.birds[i].draw();
+			this.birds[i].checkIfDead(nearestBarrierIndex);
+			if(!this.birds[i].dead){
+				alive = true;
+			}
+		}
+		return alive;
+	}
+
+	this.nextGeneartion = function(numParents,numChildren,mutateProbability,maxGenesToMutate){
+		var sortedBirds = sortArray(this.birds);
+		if (sortedBirds[sortedBirds.length-1].fitness>maxFitness){
+			maxFitness = sortedBirds[sortedBirds.length-1].fitness;
+			maxNetwork = sortedBirds[sortedBirds.length-1];
+			document.getElementById("maxFitness").innerHTML = "Max Fitness: " + maxFitness;
+		}
+		document.getElementById("fitness").innerHTML =("Fitness: "+sortedBirds[sortedBirds.length-1].fitness);
+		var parents = [];
+		for(var i = 0; i < numParents; i++){
+			parents.push(sortedBirds[sortedBirds.length-1-i]);
+		}
+		var children = [];
+		for(var i = 0; i < numChildren-numParents; i++){
+			children.push(new Bird(startX,this.startY));
+			children[i].network = parents[Math.floor(Math.random()*parents.length)].network.crossOver(parents[Math.floor(Math.random()*parents.length)]);
+			children[i].network.mutate(mutateProbability,maxGenesToMutate);
+		}
+		for(var i = 0; i < numParents; i++){
+			children.push(new Bird(startX,this.startY));
+			children[i].network = parents[i].network;
+		}
+		var newGeneration = new Generation(numChildren,this.startY);
+		newGeneration.birds = children;
+		return newGeneration;
+	}
+}
+
+function Barrier(posX,posY,width,height){
+	this.posX = posX;
+	this.posY = posY;
+	this.height = height;
+	this.width = width;
+	this.update = function(){
+		this.posX -= barrierSpeed;
+	}
+	this.draw = function(){
+		ctx.beginPath();
+		ctx.rect(this.posX,0,this.width,this.posY-(this.height/2));
+		ctx.fillStyle = "green";
+		ctx.fill();
+		ctx.beginPath();
+		ctx.rect(this.posX,this.posY+(this.height/2),this.width,canvas.height);
+		ctx.fillStyle = "green";
+		ctx.fill();
+	}
+}
+</script>
+<style>
+</style>
+</html>

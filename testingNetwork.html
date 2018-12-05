@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Genetic Algorithm</title>
+</head>
+<body>
+<canvas id="canvas" height="600" width="1000"></canvas>
+<h2 id="fitness"></h2>
+<h2 id="maxFitness"></h2>
+<input type="button" value="Print Best Network" onclick="
+			console.log(maxNetwork);" />
+</body>
+<script>
+//Global Variables
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+var jumpForce = 170;
+var damping = 0.2;
+var Birdradius = 15;
+var startX = 100;
+var startY = 200;
+var timePerFrame = 5;
+var barrierSpeed = 15
+var barriers = [];
+var heightRandomRange = 400;
+var networkSize = [4,11,1];
+//Main Loop
+var bird = new Bird(startX,startY);
+
+//11800 fitness [4,8,1]
+/*bird.network.layers[1].weights = [-0.7055425939804811,0.9891294207948258,0.639396652680075,0.9119706050475274,0.5032309377541266,-0.8329835582246448,-0.05080437017615402,-0.8035060327688162,-0.8971122347523419,-0.47415413458961364,0.30908765337415955,0.893232570135198,-0.03253999392024998,0.013822050313538892,-0.022034467277308956,-0.9929346638176391,-0.16895026031607552,-0.5767022700365514,0.4896217002443155,0.8104921524295765,0.4841219076318497,0.41684944976635485,-0.03965856380602384,0.8689083827487338,-0.06103981217443932,-0.983418636506264,-0.5190901987953986,-0.8821493402614395,0.14914514143528956,-0.3569018830253925,0.11706589115492871,-0.6113301823953345];
+bird.network.layers[2].weights = [0.4259144222512403,-0.14886684101660208,-0.08252579441805885,-0.8516694762551014,-0.5124506909749602,0.8694493477170009,-0.5311120794537105,-0.7757120766022165];*/
+
+//1500 fitness [4,10,1]
+/*bird.network.layers[1].weights = [0.2500041113020246,-0.012164428899903879,-0.6459298181186197,0.1001903153486694,0.12539916785019622,-0.2030659880592811,-0.34071656865251265,-0.9430934484068136,-0.05766281526712813,-0.112845214770251,0.012403194098861814,-0.7686642358366846,0.1592477519448776,0.729193959188775,-0.8501711028812946,0.03481995724042086,0.8334040223500137,-0.47498462024119004,-0.026937940381211334,-0.33562513895656876,0.25887591113649977,0.30954750228048233,-0.9318536452479398,0.1800224750409396,0.044601406603505644,0.45263354873494066,-0.5456601533243695,-0.3565871921045525,-0.07182613026823059,0.09218335737972394,-0.1292247388661587,-0.42623177725639927,0.2854768668359897,0.5176789616261597,0.20606074412769582,0.6229677406207399,0.5925278463955315,-0.54450168925933,0.9514140274072145,0.8581300778525973];
+bird.network.layers[2].weights = [0.956098631022209,-0.9297422931200683,-0.44886020507177804,-0.9022452614777716,-0.7826436859881571,-0.1458904396158447,0.7996498976107937,-0.45061602325171446,0.007234078581962233,-0.3051357231113201];*/
+
+/*//28432 fitness [4,11,1]
+bird.network.layers[0].biases = [0.4651597578519602,-0.39886751440748336,0.8756234936996119,0.02989938868814468];
+bird.network.layers[1].biases = [-0.4419748132703827,-0.3259951597688229,-0.35875033863012185,0.37905407127275703,-0.7663505127167749,-0.40575361828991685,-0.6809649555569761,-0.7579711807839988,-0.25173055685453294,0.11917120239371881,-0.4525099360060434];
+bird.network.layers[2].biases = [-0.9022289336158682];
+bird.network.layers[1].weights = [0.057481629917124355,0.1378481000612437,0.10147735070937314,0.5237952781720563,-0.10046180254102755,-0.04320987287562161,-0.05134955903147009,-0.5627192427490275,0.8419619080440714,0.000460963552795679,-0.8037083725038427,-0.5169269537075838,0.02493686100190784,-0.15325602864601695,0.03992881523410308,-0.951916609120464,0.26895110588955307,0.43174358097880194,0.22858136285670438,-0.4457125384240954,0.6394494309918306,-0.015507832584659376,0.2670762385422836,-0.4357570641914279,0.7471690124797608,-0.061856469552183935,0.9010154311371568,0.004479836559227568,-0.7390972526060908,0.33444605914593506,-0.6177936001675994,-0.37010430635220803,-0.926711222523541,-0.6660953946636208,0.5940983981371266,-0.35944037572261855,-0.015042996150283372,-0.8819091327918454,-0.4238583947664485,0.3380654474802216,0.018058728469635188,0.18564242170828082,-0.016492451485756288,0.9096124032103687];
+bird.network.layers[2].weights = [0.7222068965194275,-0.3059706540233056,-0.06920503712824155,-0.8654630957803051,-0.3619315722880363,0.08120052327628624,0.11307116111234627,-0.4581132566870272,-0.14032327149169,-0.6053400297906188,0.6186411919368529];*/
+
+//51800 fitness
+bird.network.layers[0].biases = [-0.38949612090240837,0.9459448892646729,-0.6454776537060876,-0.7858787571698982];
+bird.network.layers[1].biases = [-0.4419748132703827,-0.3259951597688229,-0.35875033863012185,0.37905407127275703,-0.7663505127167749,-0.40575361828991685,-0.6809649555569761,-0.7579711807839988,-0.25173055685453294,0.11917120239371881,-0.4525099360060434];
+bird.network.layers[2].biases = [-0.9022289336158682];
+bird.network.layers[1].weights = [-0.490234486452485,0.43039154246149014,0.832264392937359,0.7379232162305942,-0.10046180254102755,-0.04143544913693642,-0.05134955903147009,-0.9680900098382805,0.03678078670813223,-0.057376029252173666,-0.8312677113073361,0.298849980584591,0.02493686100190784,-0.15325602864601695,0.03992881523410308,-0.951916609120464,0.26236468438597393,0.6480555659482374,0.22858136285670438,-0.028669766405492236,0.5443124279615281,0.633964159454989,-0.7180725042396325,0.033557949468713044,0.7471690124797608,0.3659041968708352,0.9010154311371568,-0.8217965895769153,-0.6595082878824985,0.830621221727077,-0.622098723328679,-0.25460712683459263,-0.23121535837020923,0.8714404421287192,-0.43565718297960254,-0.2638429877379971,0.086943162364582,-0.8470081863800294,-0.143756594593476,-0.868689755808965,0.018058728469635188,0.18564242170828082,-0.016492451485756288,0.9096124032103687];
+bird.network.layers[2].weights = [0.7222068965194275,-0.32409924748799623,-0.9005156719816365,-0.8654630957803051,-0.3619315722880363,-0.6865555615044636,0.11834202447637399,-0.4581132566870272,-0.14032327149169,-0.6923307466696635,0.6186411919368529];
+
+startBarriers();
+function loop(){
+	drawBackground();
+	var closestBarrierIndex = 0;
+	for(var i = 0; i < barriers.length; i++){
+		barriers[i].update();
+		barriers[i].draw();
+		if(barriers[i].posX<(0-barriers[i].width)){
+			barriers.splice(i,1);
+			barriers.push(new Barrier(canvas.width+20,Math.random()*heightRandomRange+50,70,220));
+			i--;
+		}
+	}
+	for(var i = 0; i < barriers.length; i++){	
+		if(barriers[i].posX>startX){
+				closestBarrierIndex = i;
+				break;
+		}
+	}
+	bird.makeDecision(barriers[closestBarrierIndex].posX,barriers[closestBarrierIndex].posY);
+	bird.explicitEuler();
+	bird.draw();
+	bird.checkIfDead(closestBarrierIndex);
+	setTimeout(loop,timePerFrame);
+}
+
+loop();
+
+//Temporary manual bird control
+var Jumped = false;
+document.onkeydown = function(){
+	bird.jump = true;
+}
+//Other functions
+function drawBackground(){
+	ctx.beginPath();
+	ctx.rect(0,0,canvas.width,canvas.height);
+	ctx.fillStyle = "black";
+	ctx.fill();
+}
+
+function startBarriers(){
+	barriers.push(new Barrier(canvas.width,Math.random()*heightRandomRange+50,70,220));
+	barriers.push(new Barrier(canvas.width+333,Math.random()*heightRandomRange+50,70,220));
+	barriers.push(new Barrier(canvas.width+666,Math.random()*heightRandomRange+50,70,220));
+	//barriers.push(new Barrier(canvas.width+999,Math.random()*heightRandomRange+50,70,220));
+}
+
+function Node(value,squashType){
+	this.value = value;
+	this.squashType = squashType;
+	this.squash = function(num){
+		if(squashType=="sigmoid"){
+			return 1/(1+Math.pow(Math.E,-num));
+		}else if(squashType=="tanh"){
+			return num;
+		}else if(squashType=="relu"){
+			if(num>0){
+				return num;
+			}else{
+				return 0;
+			}
+
+		}else{
+			return num;
+		}
+	}
+	this.addValue = function(valuePrev,weight){
+		this.value += valuePrev*weight
+	}
+	this.squashValue = function(){
+		this.value = this.squash(this.value);
+	}
+}
+
+function Layer(nodes,type){
+	this.nodesLength = nodes;
+	this.type = type;
+	this.nodes = [];
+	this.weights = [];
+	this.biases = [];
+	this.initializeRandom = function(prevNodesLength){
+		if(this.type!="input"){
+			for(var i = 0; i < this.nodesLength; i++){
+				for(var j = 0; j < prevNodesLength; j++){
+					this.weights.push(Math.random()*2 - 1);
+				}
+			}
+		}
+		for(var i = 0; i < this.nodesLength; i++){
+			this.nodes.push(new Node(0,"sigmoid"));
+			this.biases.push(Math.random()*2-1);
+		}
+	}
+
+	this.feedForward = function(prevNodes){
+		for(var i = 0; i < this.nodesLength; i++){
+			for(var j = 0; j < prevNodes.length; j++){
+				this.nodes[i].addValue(prevNodes[j].value,this.weights[i*prevNodes.length + j]);
+			}
+			this.nodes[i].value += this.biases[i];
+		}
+		for(var i = 0; i < this.nodesLength; i++){
+			this.nodes[i].squashValue();
+		}
+		return this.nodes;
+	}
+}
+
+function Network(arrLayers){
+	this.numLayers = arrLayers.length;
+	this.layers = []
+
+	this.initialize = function(){
+		for(var i = 0; i < this.numLayers; i++){
+			var typeLayer;
+			if(i==0){
+				typeLayer = "input";
+			}else if(i == this.numLayers-1){
+				typeLayer = "output";
+			}else{
+				typeLayer = "hidden layer";
+			}
+			this.layers.push(new Layer(arrLayers[i],typeLayer));
+			if(i!=0){
+				this.layers[i].initializeRandom(this.layers[i-1].nodesLength);
+			}else{
+				this.layers[i].initializeRandom(0);
+			}
+		}
+	}
+
+	this.feedForward = function(inputArray){
+		for(var i = 0; i < inputArray.length; i++){
+			this.layers[0].nodes[i].value = inputArray[i];
+		}
+		var currentNodes = this.layers[0].nodes;
+		for(var i = 1; i < this.numLayers; i++){
+			currentNodes = this.layers[i].feedForward(currentNodes);
+		}
+		return currentNodes;
+	}
+
+	this.printNetwork = function(){
+		var answer = [];
+		var weights = [];
+		for(var i = 1; i < this.numLayers; i++){
+			weights.push(this.layers[i].weights);
+		}
+		var biases = [];
+		for(var i = 1; i < this.numLayers; i++){
+			for(var j = 0; j < this.layers[i].nodesLength; j++){
+				biases.push(this.layers[i].biases[j]);
+			}
+		}
+		answer.push(weights);
+		answer.push(biases);
+		return answer;
+	}
+
+	this.crossOver = function(otherNetwork){
+		var allWeights = [];
+		var allBiases = [];
+		for(var i = 1; i < this.numLayers; i++){
+			var weights1 = this.layers[i].weights;
+			var weights2 = otherNetwork.network.layers[i].weights;
+			var biases1 = this.layers[i].biases;
+			var biases2 = otherNetwork.network.layers[i].biases;
+			var newWeights = geneticCrossover(weights1,weights2);
+			var newBiases = geneticCrossover(biases1,biases2);
+			allWeights.push(newWeights);
+			allBiases.push(newBiases);
+		}
+		var newNetwork = new Network(arrLayers);
+		newNetwork.initialize();
+		for(var i = 1; i < newNetwork.numLayers; i++){
+			newNetwork.layers[i].weights = allWeights[i-1];
+			newNetwork.layers[i].biases = allBiases[i-1];
+		}
+		return newNetwork;
+	}
+
+	this.mutate = function(mutateProbability,maxGenesToMutate){
+		for(var i = 1; i < this.numLayers; i++){
+			var weights1 = this.layers[i].weights;
+			for(var j = 0; j < weights1.length; j++){
+				if(Math.random()<mutateProbability){
+					weights1[j] = Math.random()*2 - 1;
+				}
+			}
+		}
+	}
+}
+
+//Helper functions
+
+function geneticCrossover(weights1,weights2){
+			var index1 = Math.floor(Math.random()*weights1.length);
+			var index2 = Math.floor(Math.random()*weights1.length);
+			if(index1>index2){
+				var temp = index1;
+				index1 = index2;
+				index2 = temp;
+			}
+			var newWeights = [];
+			for(var j = 0; j < index1; j++){
+				newWeights.push(weights1[j]);
+			}
+			for(var j = index1; j < index2; j++){
+				newWeights.push(weights2[j]);
+			}
+			for(var j = index2; j < weights1.length; j++){
+				newWeights.push(weights1[j]);
+			}
+			return newWeights;	
+}
+//Will need to do more testing on the network
+
+function Bird(posX,posY){
+	this.fitness = 0;
+	this.posX = posX;
+	this.posY = posY;
+	this.velocityY = 0;
+	this.gravity = 20;
+	this.network = new Network(networkSize);
+	this.network.initialize();
+	this.jump = false;
+	this.dead = false;
+	this.makeDecision = function(posXBarrier,posYBarrier){
+		if(!this.dead){
+			var distToNearestPipe = this.posX-posXBarrier;
+			var heightFromJumpCenter = this.posY-posYBarrier
+			var inputToNetwork = [distToNearestPipe,heightFromJumpCenter,this.posY,this.velocityY];
+			var answer = this.network.feedForward(inputToNetwork);
+			if(answer[0].value>0.5){
+				this.jump = true;
+			}else{
+				this.jump = false;
+			}
+		}
+	}
+
+	this.explicitEuler = function(){
+		if(!this.dead){
+			var forceY = this.gravity;
+			if(this.jump){
+				forceY -= jumpForce;
+				this.jump = false;
+			}
+			this.velocityY += forceY*damping;
+			this.posY += this.velocityY;
+			this.fitness++;
+			if(this.posY<0){
+				this.posY = 0;
+				this.velocityY = 0;
+			}
+		}
+	}
+
+	this.draw = function(){	
+		if(!this.dead){
+			ctx.beginPath();
+			ctx.ellipse(this.posX,this.posY,Birdradius,Birdradius,2*Math.PI,0,2*Math.PI);
+			ctx.fillStyle = "red";
+			ctx.fill();
+		}
+	}
+	this.checkIfDead = function(nearestBarrierIndex){
+		if(this.posY+Birdradius>canvas.height){
+			this.dead = true;
+		}
+		var prev = barriers[nearestBarrierIndex-1];
+		var next = barriers[nearestBarrierIndex]
+		if(prev!=null&&this.posX>prev.posX&&this.posX<prev.posX+prev.width){
+			if(this.posY+Birdradius>prev.posY+(prev.height/2)||this.posY-Birdradius<prev.posY-(prev.height/2)){
+				this.dead = true;
+			}
+		}else if(this.posY+Birdradius>next.posY+(next.height/2)||this.posY-Birdradius<next.posY-(next.height/2)){
+			if(this.posX+Birdradius>=next.posX){
+				this.dead = true;
+			}
+		}
+	}
+}
+function Barrier(posX,posY,width,height){
+	this.posX = posX;
+	this.posY = posY;
+	this.height = height;
+	this.width = width;
+	this.update = function(){
+		this.posX -= barrierSpeed;
+	}
+	this.draw = function(){
+		ctx.beginPath();
+		ctx.rect(this.posX,0,this.width,this.posY-(this.height/2));
+		ctx.fillStyle = "green";
+		ctx.fill();
+		ctx.beginPath();
+		ctx.rect(this.posX,this.posY+(this.height/2),this.width,canvas.height);
+		ctx.fillStyle = "green";
+		ctx.fill();
+	}
+}
+</script>
+<style>
+</style>
+</html>
