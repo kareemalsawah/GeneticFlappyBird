@@ -1,1 +1,1 @@
-#Play Flappy Bird using a Genetic Algorithm
+# Play Flappy Bird using a Genetic Algorithm
